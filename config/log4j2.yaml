@@ -1,0 +1,30 @@
+Configuration:
+  status: warn
+
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+    RollingFile:
+      name: RollingFile
+      fileName: "logs/sql2es.log"
+      filePattern: "logs/$${date:yyyy-MM}/sql2es-%d{MM-dd-yyyy}-%i.log.gz"
+      PatternLayout:
+        Pattern: "%d %p %c{1.} [%t] %m%n"
+      Policies:
+        TimeBasedTriggeringPolicy:
+          interval: 1
+        SizeBasedTriggeringPolicy:
+          size: "25 MB"
+  Loggers:
+    Root:
+      level: error
+      AppenderRef:
+        ref: Console
+    logger:
+      name: org.takemoa.sql2es
+      level: debug
+      AppenderRef:
+        ref: RollingFile

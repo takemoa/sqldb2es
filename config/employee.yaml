@@ -1,0 +1,200 @@
+---
+# Employee. This is the main object and all the others sub objects.
+employee:
+  # The field that uniquely identifies the domain / type
+  idField: employeeNo
+  # Reference field - for sorting/comparing new values
+  refField: employeeNo
+  # Additional sort fields
+#  sortFields:
+#    <sort_field>: ASC
+  # List of source tables for this type
+  tables:
+    # Table name as in database
+    employees:
+      as: "emp" # 'AS' in the select query
+  # List of fields for this type
+  fields:
+    employeeNo:
+      sqlExpression: "emp.emp_no"
+      type: LONG
+    birthDate:
+      sqlExpression: "emp.birth_date"
+      type: DATE
+    firstName:
+      sqlExpression: "emp.first_name"
+      type: STRING
+    lastName:
+      sqlExpression: "emp.last_name"
+      type: STRING
+    gender:
+      sqlExpression: "emp.gender"
+      type: STRING
+      mappings:
+        type: "string"
+        index: "not_analyzed"
+        store: "yes"
+    hireDate:
+      sqlExpression: "emp.hire_date"
+      type: DATE
+    lastUpdateDate:
+      sqlExpression: "emp.last_update_date"
+      type: DATETIME
+  # Where filter to update existing records
+  updates:
+    # Modified records since last run
+    employee.updated:
+      # Unique ID to identify the update type
+      refField: lastUpdateDate
+      # The max filters automatically added: <refField> <= :MAX(local_ref_value) && <updateRefField> > MAX(localUpdateRefField)
+      # Additional filters
+      whereFilters:
+        - "emp.emp_no > 100"
+employee.departments:
+  # relation to the parent type: one object or an array of object; not required for the top level object
+  # ONE | MANY
+  parentRelation: MANY
+  # The field that uniquely identifies the domain / type
+  idField: idValue
+  # List of source tables for this type
+  tables:
+    # Child table name
+    dept_emp:
+      # Alias in select statement
+      as: "dept_emp"
+#      primaryKeyFields:
+#        - emp_no
+#        - dept_no
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "emp.emp_no"
+        childColumns:
+        - "dept_emp.emp_no"
+    # Child table name
+    departments:
+      # Alias in select statement
+      as: "dept"
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "dept_emp.dept_no"
+        childColumns:
+        - "dept.dept_no"
+  fields:
+    idValue:
+      sqlExpression: "CONCAT(dept.dept_no, dept_emp.from_date, dept_emp.to_date)"
+      type: STRING
+    departmentNo:
+      sqlExpression: "dept.dept_no"
+      type: STRING
+    departmentName:
+      sqlExpression: "dept.dept_name"
+      type: STRING
+    fromDate:
+      sqlExpression: "dept_emp.from_date"
+      type: DATE
+    toDate:
+      sqlExpression: "dept_emp.to_date"
+      type: DATE
+# Salaries
+employee.salaries:
+  parentRelation: MANY
+  idField: idValue
+  # List of source tables for this type
+  tables:
+    # Child table name
+    salaries:
+      # Alias in select statement
+      as: "sal"
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "emp.emp_no"
+        childColumns:
+        - "sal.emp_no"
+  fields:
+    idValue:
+      sqlExpression: "CONCAT(sal.from_date, sal.to_date)"
+      type: STRING
+    salary:
+      sqlExpression: "sal.salary"
+      type: FLOAT
+    fromDate:
+      sqlExpression: "sal.from_date"
+      type: DATE
+    toDate:
+      sqlExpression: "sal.to_date"
+      type: DATE
+# Salaries
+employee.titles:
+  parentRelation: MANY
+  idField: idValue
+  # List of source tables for this type
+  tables:
+    # Child table name
+    titles:
+      # Alias in select statement
+      as: "title"
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "emp.emp_no"
+        childColumns:
+        - "title.emp_no"
+  fields:
+    idValue:
+      sqlExpression: "CONCAT(title.from_date, title.to_date)"
+      type: STRING
+    title:
+      sqlExpression: "title.title"
+      type: STRING
+    fromDate:
+      sqlExpression: "title.from_date"
+      type: DATE
+    toDate:
+      sqlExpression: "title.to_date"
+      type: DATE
+employee.departmentManagers:
+  # relation to the parent type: one object or an array of object; not required for the top level object
+  # ONE | MANY
+  parentRelation: MANY
+  idField: idValue
+  # List of source tables for this type
+  tables:
+    # Child table name
+    dept_manager:
+      # Alias in select statement
+      as: "dept_manager"
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "emp.emp_no"
+        childColumns:
+        - "dept_manager.emp_no"
+    # Child table name
+    departments:
+      # Alias in select statement
+      as: "deptm"
+      join: # INNER | LEFT_OUTER for now
+        type: "LEFT_OUTER"
+        parentColumns:
+        - "dept_manager.dept_no"
+        childColumns:
+        - "deptm.dept_no"
+  fields:
+    idValue:
+      sqlExpression: "CONCAT(deptm.dept_no, dept_manager.from_date, dept_manager.to_date)"
+      type: STRING
+    departmentNo:
+      sqlExpression: "deptm.dept_no"
+      type: STRING
+    departmentName:
+      sqlExpression: "deptm.dept_name"
+      type: STRING
+    fromDate:
+      sqlExpression: "dept_manager.from_date"
+      type: DATE
+    toDate:
+      sqlExpression: "dept_manager.to_date"
+      type: DATE
