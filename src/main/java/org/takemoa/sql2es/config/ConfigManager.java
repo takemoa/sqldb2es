@@ -233,6 +233,10 @@ public class ConfigManager {
 		return config.getBatchSize();
 	}
 
+    public int getRunIntervalMins() {
+        return config.getRunIntervalMins();
+    }
+
 	@Override
 	public String toString() {
 		return "ConfigManager [homeFolder=" + homeFolder + ", configFolder="

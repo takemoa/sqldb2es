@@ -3,9 +3,9 @@
 # General parameters
 
 # Interval between two consecutive runs; default=30
-runIntervalMins: 10
+runIntervalMins: 0
 # How many records to be processed in one batch. Default value is 50000.
-batchSize: 50000
+batchSize: 500000
 # ES cluster name and settings. It is not required to be defined here if default settings apply.
 esClusters:
   Olympus171:
@@ -58,6 +58,6 @@ channels:
     # Database timestamps time zone. If empty the local timezone is used
     dbTimeZoneId: PST
     # Max records in one run - optional, defaults to 1,000,000
-    maxRecords: 100000
+    maxRecords: 2000000
     # Batch size - default is the global value
-    batchSize: 50000
+    # batchSize: 50000
