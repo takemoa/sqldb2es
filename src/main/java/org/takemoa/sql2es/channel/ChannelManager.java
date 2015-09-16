@@ -1,6 +1,5 @@
 package org.takemoa.sql2es.channel;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.commons.lang.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +28,10 @@ import org.takemoa.sql2es.sql.SelectBuilder;
 import org.takemoa.sql2es.sql.SqlTemplates;
 import org.takemoa.sql2es.util.Conversions;
 
-import java.util.*;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Manages a single channel data into Elastic Search
@@ -37,11 +39,9 @@ import java.util.*;
  * @author Take Moa
  */
 public class ChannelManager {
-    private static final Logger logger = LogManager.getLogger();
-
     // Automatic field to be added to any domain object
     public static final String FIELD_CHANNEL = "channel_";
-    private static ObjectMapper mapper = new ObjectMapper();
+    private static final Logger logger = LogManager.getLogger();
     private String channelName;
     private ConfigManager configManager;
     private ChannelDefinition channelDefinition;
@@ -50,6 +50,8 @@ public class ChannelManager {
     private int batchSize;
     private int maxRecords;
     private String esClusterName = null;
+    // For reporting only
+    private int insertedCount, updatedCount;
 
     public ChannelManager(String channelName, ConfigManager configManager,
                           ChannelDefinition channelDefinition,
@@ -90,8 +92,7 @@ public class ChannelManager {
     }
 
     /**
-     * Does the actual processing, load from database, adding to
-     * ElasticSearch.
+     * Does the actual processing, load from database, store data into ElasticSearch.
      */
     public void execute() {
 
@@ -104,6 +105,14 @@ public class ChannelManager {
         ChannelConfigData configData = lookupConfigData();
         // Reference field
         FieldDefinition refFieldDef = domainDefinition.getRefFieldDef();
+        insertedCount = 0;
+        updatedCount = 0;
+
+        logger.info("Process channel {}\n\t- esCluster: {}\n\t- esIndex: {}\n" +
+                        "\t- esType: {}\n\t- maxRecords: {}\n\t- batchSize: {}\n" +
+                        "\t- dataSource: {}", esClusterName, channelName, channelDefinition.getEsIndex(),
+                channelDefinition.getEsType(), maxRecords, batchSize, channelDefinition.getDatasourceName());
+
         // Retrieve lastReferenceValue from ES index directly
         Object lastReferenceValue = null;
         boolean veryFirstTime = false;
@@ -128,56 +137,35 @@ public class ChannelManager {
         // JDBC template and parameters
         NamedParameterJdbcTemplate jdbcTemplate = new NamedParameterJdbcTemplate(
                 dataSourceDef.getDataSource());
-        ArrayList<ChannelSqlFetcher> updateSqlFetchers = new ArrayList<ChannelSqlFetcher>();
         // Save a reference select builder
         SelectBuilder refSelectBuilder = mainSelectBuilder.clone();
+        logger.info("Channel {} reference SQL query: \n{}", channelName, refSelectBuilder.buildSelectQuery());
 
         domainDefinition.addRefSort(mainSelectBuilder);
         if (lastReferenceValue != null) {
             domainDefinition.addRefFilter(mainSelectBuilder);
         }
 
-        boolean hasMore = true;
+        boolean moreNewRecords = true;
 
+        // Fetcher of new data to be inserted
         ChannelSqlFetcher newDataSqlFetcher = new ChannelSqlFetcher(this, mainSelectBuilder, jdbcTemplate, batchSize,
                 maxRecords, null);
 
-        while (hasMore)  {
+        while (moreNewRecords) {
             // Execute first the updates so as to update the previous new batches
-            if (lastReferenceValue != null) {
-                for (TypeDefinition typeDef: domainDefinition.getAllTypeDefs()) {
-                    if (typeDef.hasUpdates()) {
-                        for (TypeUpdateDefinition typeUpdateDef: typeDef.getUpdateTypeDefs()) {
-                            Object lastUpdateReferenceValue = getChannelMaxFieldValue(typeUpdateDef.getRefFieldDef());
-                            ChannelSqlFetcher updateSqlFetcher = createUpdateFetcher(refSelectBuilder, typeDef,
-                                    typeUpdateDef,
-                                    lastUpdateReferenceValue, jdbcTemplate);
+            executeUpdate(lastReferenceValue, refSelectBuilder, jdbcTemplate);
 
-                            updateSqlFetcher.processNewBatch(lastReferenceValue, lastUpdateReferenceValue);
-
-                            LinkedHashMap<String, Map<String, Object>> updateDomainObjectMap = updateSqlFetcher
-                                    .getDomainObjectMap();
-
-                            // TODO dedicated update method
-                            if (!updateDomainObjectMap.isEmpty()) {
-                                Object updateLastReferenceValue = storeValues(updateDomainObjectMap, updateSqlFetcher
-                                        .getBatchCount(), true);
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            // Check new fields
-            hasMore = newDataSqlFetcher.processNewBatch(lastReferenceValue, null);
+            // Retrieve records (as domain objects) from database
+            moreNewRecords = newDataSqlFetcher.processNewBatch(lastReferenceValue, null);
 
             LinkedHashMap<String, Map<String, Object>> domainObjectMap = newDataSqlFetcher
                     .getDomainObjectMap();
+
             if (!domainObjectMap.isEmpty()) {
                 // Store domain object into ES
                 lastReferenceValue = storeValues(domainObjectMap, newDataSqlFetcher.getBatchCount(),
-                        !hasMore);
+                        !moreNewRecords, false);
                 // TODO { replace with audit data
                 if (refFieldDef != null) {
                     configData.setLastRefValue(refFieldDef.getFieldName(),
@@ -190,13 +178,53 @@ public class ChannelManager {
             }
         }
 
-        // TODO Another update here
+        // One more update here
+        executeUpdate(lastReferenceValue, refSelectBuilder, jdbcTemplate);
+
+        logger.info("Channel '{}' inserted {} records, updated {} record; last ref={}", channelName, insertedCount,
+                updatedCount, lastReferenceValue);
+    }
+
+    /**
+     * Update ES store with values modified since last run
+     *
+     * @param lastReferenceValue The max reference value (from data already in the ES)
+     * @param refSelectBuilder   Reference select builder as constructed based on type definitions
+     * @param jdbcTemplate       The channel JDBC template
+     */
+    private void executeUpdate(Object lastReferenceValue, SelectBuilder refSelectBuilder, NamedParameterJdbcTemplate jdbcTemplate) {
+        if (lastReferenceValue != null) {
+            for (TypeDefinition typeDef : domainDefinition.getAllTypeDefs()) {
+                if (typeDef.hasUpdates()) {
+                    for (TypeUpdateDefinition typeUpdateDef : typeDef.getUpdateTypeDefs()) {
+                        Object lastUpdateReferenceValue = getChannelMaxFieldValue(typeUpdateDef.getRefFieldDef());
+                        ChannelSqlFetcher updateSqlFetcher = createUpdateFetcher(refSelectBuilder, typeDef,
+                                typeUpdateDef,
+                                lastUpdateReferenceValue, jdbcTemplate);
+                        logger.debug("Execute update {} - lastUpdateReferenceValue={}", typeUpdateDef.getName(), lastUpdateReferenceValue);
+                        // Bring updated values from database
+                        updateSqlFetcher.processNewBatch(lastReferenceValue, lastUpdateReferenceValue);
+
+                        LinkedHashMap<String, Map<String, Object>> updateDomainObjectMap = updateSqlFetcher
+                                .getDomainObjectMap();
+
+                        // Store into ES
+                        if (!updateDomainObjectMap.isEmpty()) {
+                            Object updateLastReferenceValue = storeValues(updateDomainObjectMap, updateSqlFetcher
+                                    .getBatchCount(), true, true);
+                        }
+                    }
+                }
+            }
+
+        }
 
     }
 
     /**
      * Create a new update sql fetcher. The select statement depends on whether the lastUpdateReferenceValue is null
      * or not
+     *
      * @param refSelectBuilder
      * @param typeUpdateDef
      * @param lastUpdateReferenceValue
@@ -252,6 +280,12 @@ public class ChannelManager {
         return getChannelMaxFieldValue(refFieldDef);
     }
 
+    /**
+     * Retrieve max value for <code>fieldDef</code> from Elastic Search
+     *
+     * @param fieldDef
+     * @return
+     */
     private Object getChannelMaxFieldValue(FieldDefinition fieldDef) {
         if (fieldDef == null) {
             // No reference field, return null
@@ -279,9 +313,8 @@ public class ChannelManager {
             throw re;
         }
 
-        logger.debug("Total records before this batch: {}", searchResponse.getHits().totalHits());
-
         if (searchResponse.getHits().totalHits() == 0) {
+            logger.debug("Channel {}: no existing data");
             return null; // first time
         }
         Max maxAgg = searchResponse.getAggregations().get(maxRef);
@@ -291,8 +324,8 @@ public class ChannelManager {
             maxValue = Conversions.fromEsValue(maxAgg.getValue(), fieldDef.getFieldType(), null);
         }
 
-        // How to cast to a date
-        logger.debug("Max {} value before this batch:{} ---> {}", fieldDef.getFieldPath(), maxAgg.getValue(), maxValue);
+        logger.debug("Channel {}: max '{}' value:{} (raw) -> {}, total records: {}", channelName, fieldDef.getFieldPath(),
+                maxAgg.getValue(), maxValue, searchResponse.getHits().totalHits());
 
         return maxValue;
 
@@ -305,13 +338,10 @@ public class ChannelManager {
      * @param lastBatch       whether this is the last batch
      * @return
      */
-    private Object storeValues(
-            LinkedHashMap<String, Map<String, Object>> domainObjectMap,
-            int batchCount, boolean lastBatch) {
-        // If not the last batch, do not insert the last domain object
-        // as it could
-        // be incomplete. Instead make sure it will be part of the next
-        // batch.
+    private Object storeValues(LinkedHashMap<String, Map<String, Object>> domainObjectMap, int batchCount,
+                               boolean lastBatch, boolean isUpdate) {
+        // If not the last batch, do not insert the last domain object as it could
+        // be incomplete. Instead make sure it will be part of the next batch.
         Object lastRefValue = null;
         Map.Entry<String, Map<String, Object>> lastEntry = null;
         Iterator<Map.Entry<String, Map<String, Object>>> it = domainObjectMap
@@ -334,8 +364,7 @@ public class ChannelManager {
         Client esClient = ESClientManager.get(esClusterName);
         BulkRequestBuilder bulkRequest = esClient.prepareBulk();
 
-        // either use client#prepare, or use Requests# to directly build
-        // index/delete requests
+        // Prepare BulkRequest
         for (Map.Entry<String, Map<String, Object>> entry : domainObjectMap
                 .entrySet()) {
             bulkRequest.add(esClient.prepareIndex(
@@ -346,15 +375,20 @@ public class ChannelManager {
 
         BulkResponse bulkResponse = bulkRequest.execute().actionGet();
 
-        logger.debug("Channel {} batch {} took {} ms to insert {} domain objects; last ref={} last ID={}", channelName,
-                batchCount, (System.currentTimeMillis() - startTime), domainObjectMap.size(), lastRefValue, lastEntry.getKey());
+        logger.debug("Channel '{}' batch {} took {} ms to store {} domain objects; last ref={} last ID={} update={}",
+                channelName, batchCount, (System.currentTimeMillis() - startTime), domainObjectMap.size(),
+                lastRefValue, lastEntry.getKey(), isUpdate);
 
         if (bulkResponse.hasFailures()) {
             // process failures by iterating through each bulk response item
             logger.debug("Bulk response has failures:\n{}", bulkResponse.buildFailureMessage());
         }
 
-        // Update the ES Channel values (in ES)
+        if (isUpdate) {
+            updatedCount += domainObjectMap.size();
+        } else {
+            insertedCount += domainObjectMap.size();
+        }
 
         return lastRefValue;
     }
@@ -444,7 +478,7 @@ public class ChannelManager {
         indexRequestBuilder.setSource(configData.toMap());
 
         IndexResponse indexResponse = indexRequestBuilder.execute().actionGet();
-        logger.debug("Config data created (updated=false): {}",indexResponse.isCreated());
+        logger.debug("Config data created (updated=false): {}", indexResponse.isCreated());
     }
 
     @Override

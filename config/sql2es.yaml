@@ -58,6 +58,6 @@ channels:
     # Database timestamps time zone. If empty the local timezone is used
     dbTimeZoneId: PST
     # Max records in one run - optional, defaults to 1,000,000
-    maxRecords: 1000000
+    maxRecords: 100000
     # Batch size - default is the global value
     batchSize: 50000

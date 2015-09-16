@@ -77,7 +77,7 @@ public class ConfigManager {
 
 	/**
 	 * Load the main config file and all domain files. It throws ConfigException
-	 * in case of any error.
+	 * in case of any fatal error. It must be called explicitly at the application startup.
 	 * 
 	 * @throws ConfigException
 	 */
@@ -100,6 +100,7 @@ public class ConfigManager {
 				filePath = channelDefinition.getEsType() + ".yaml";
 			}
 
+
 			DomainDefinition domainDefinition = loadDomainDefinition(filePath);
 			ChannelManager channelManager = new ChannelManager(
 					channelEntry.getKey(), this, channelDefinition,
@@ -119,10 +120,10 @@ public class ConfigManager {
 	 * Load main config file and the other files.
 	 */
 	public void loadConfig() {
-        logger.info("Loading configuration file ...");
-
 		// Config file first
 		URL configFileUrl = resolveConfigFile(configFileName);
+
+        logger.info("Loading main configuration file: {}", configFileUrl);
 
 		try {
 			config = mapper.readValue(configFileUrl, Config.class);
@@ -141,6 +142,8 @@ public class ConfigManager {
 		URL domainFileUrl = resolveConfigFile(filePath);
 		LinkedHashMap<String, TypeDefinition> typesMap = null;
 
+        logger.info("Loading domain definition file: {}", domainFileUrl);
+
 		try {
 			// Parse YAML domain file
 			typesMap = mapper.readValue(domainFileUrl,
@@ -153,7 +156,7 @@ public class ConfigManager {
 
 		DomainDefinition domainDefinition = new DomainDefinition(typesMap);
 
-        logger.debug("Domain definition: \n{}", domainDefinition);
+        logger.debug("Domain definition {}: \n{}", domainDefinition.getName(), domainDefinition);
 
 		return domainDefinition;
 	}

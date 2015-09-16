@@ -1,6 +1,7 @@
 package org.takemoa.sql2es.definition;
 
 import org.springframework.util.StringUtils;
+import org.takemoa.sql2es.config.ConfigException;
 import org.takemoa.sql2es.sql.SelectBuilder;
 
 import java.sql.ResultSet;
@@ -54,7 +55,7 @@ public class DomainDefinition {
 		}
 		
 		if (rootTypeDef == null) {
-			throw new RuntimeException("Missing root type");
+			throw new ConfigException("Missing root type");
 		}
 		
 		// TODO check main type required fields
@@ -181,6 +182,10 @@ public class DomainDefinition {
 	public TypeDefinition getRootTypeDef() {
 		return rootTypeDef;
 	}
+
+    public String getName() {
+        return getRootTypeDef().getTypeName();
+    }
 
 	/**
 	 * Build a select statement from the table definitions

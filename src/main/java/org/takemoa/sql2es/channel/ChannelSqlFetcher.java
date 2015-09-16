@@ -75,7 +75,7 @@ public class ChannelSqlFetcher extends RowCountCallbackHandler {
         // a. add conditional placeholder values
         if (lastReferenceValue != null) {
             Object lastRefValueSql = Conversions.localToSqlValue(lastReferenceValue, domainDefinition.getRefFieldDef(), channelDefinition.getDbTimeZone());
-            logger.debug("Channel {} batch {} - SQL ref value: {}", channelName, batchCount, lastRefValueSql);
+            logger.debug("Channel '{}': batch {}, SQL ref value: {}", channelName, batchCount, lastRefValueSql);
             jdbcParamsMap.put(SelectBuilder.P_REF_VALUE, lastRefValueSql);
         }
         if (lastUpdateReferenceValue != null) {
@@ -83,9 +83,8 @@ public class ChannelSqlFetcher extends RowCountCallbackHandler {
             assert (typeUpdateDefinition != null);
             Object lastRefUpdateValueSql = Conversions.localToSqlValue(lastUpdateReferenceValue, domainDefinition
                     .getRefFieldDef(), channelDefinition.getDbTimeZone());
-            logger.debug("Channel {} update {} batch {} - SQL update ref value:", channelName, typeUpdateDefinition
-                            .getName(),
-                    batchCount, lastRefUpdateValueSql);
+            logger.debug("Channel '{}': update {}, batch {}, SQL update ref value {}", channelName,
+                    typeUpdateDefinition.getName(), batchCount, lastRefUpdateValueSql);
             jdbcParamsMap
                     .put(SelectBuilder.P_REF_UPDATE_VALUE, lastRefUpdateValueSql);
         }
@@ -93,13 +92,14 @@ public class ChannelSqlFetcher extends RowCountCallbackHandler {
         this.reset();
         String query = selectBuilder.buildSelectQuery();
 
-        logger.debug("Query:\n{} \nparams:{}", query, jdbcParamsMap);
+        logger.debug("Channel '{}' (for update={}), query:\n{} \nparams:{}", channelName,
+                (typeUpdateDefinition != null), query, jdbcParamsMap);
         jdbcTemplate.query(query, jdbcParamsMap, this);
         // Add reference filter to SQL in preparation for next run
         if (lastReferenceValue == null) {
             domainDefinition.addRefFilter(selectBuilder);
         }
-        logger.debug("Channel {}: batch {} took {} ms to bring {} records", channelName, batchCount,
+        logger.debug("Channel '{}': batch {} took {} ms to bring {} records", channelName, batchCount,
                 (System.currentTimeMillis() - startTime), getBatchRecordCount());
 
         // c. Figure out whether it is done or not
