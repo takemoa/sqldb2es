@@ -1,0 +1,74 @@
+#!/bin/sh
+
+SCRIPT="$0"
+
+# SCRIPT may be an arbitrarily deep series of symlinks. Loop until we have the concrete path.
+while [ -h "$SCRIPT" ] ; do
+  ls=`ls -ld "$SCRIPT"`
+  # Drop everything prior to ->
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    SCRIPT="$link"
+  else
+    SCRIPT=`dirname "$SCRIPT"`/"$link"
+  fi
+done
+
+# determine sql2es home
+S2E_HOME=`dirname "$SCRIPT"`/..
+
+# make S2E_HOME absolute
+S2E_HOME=`cd "$S2E_HOME"; pwd`
+
+S2E_CLASSPATH="$S2E_HOME/lib/*"
+
+if [ -x "$JAVA_HOME/bin/java" ]; then
+    JAVA="$JAVA_HOME/bin/java"
+else
+    JAVA=`which java`
+fi
+
+if [ ! -x "$JAVA" ]; then
+    echo "Could not find any executable java binary. Please install java in your PATH or set JAVA_HOME"
+    exit 1
+fi
+
+if [ -z "$S2E_CLASSPATH" ]; then
+    echo "You must set the S2E_CLASSPATH var" >&2
+    exit 1
+fi
+
+# Special-case path variables.
+case `uname` in
+    CYGWIN*)
+        S2E_CLASSPATH=`cygpath -p -w "$S2E_CLASSPATH"`
+        S2E_HOME=`cygpath -p -w "$S2E_HOME"`
+    ;;
+esac
+
+# set to headless, just in case
+JAVA_OPTS="$JAVA_OPTS -Djava.awt.headless=true"
+
+# Ensure UTF-8 encoding by default (e.g. filenames)
+JAVA_OPTS="$JAVA_OPTS -Dfile.encoding=UTF-8"
+
+S2E_JAVA_OPTS="-Dlog4j.configurationFile=$S2E_HOME/config/log4j2.yaml  -Dsql2es.path.home=$S2E_HOME"
+
+if [ -x "$S2E_CONFIG" ]; then
+    S2E_JAVA_OPTS="$S2E_JAVA_OPTS -Dsql2es.path.config=$S2E_CONFIG"
+fi
+
+
+# manual parsing to find out, if process should be detached
+daemonized=`echo $* | grep -E -- '(^-d |-d$| -d |--daemonize$|--daemonize )'`
+echo "$JAVA" $JAVA_OPTS $S2E_JAVA_OPTS -cp "$S2E_CLASSPATH" \
+          org.takemoa.sql2es.App start "$@"
+if [ -z "$daemonized" ] ; then
+    exec "$JAVA" $JAVA_OPTS $S2E_JAVA_OPTS -cp "$S2E_CLASSPATH" \
+          org.takemoa.sql2es.App start "$@"
+else
+    exec "$JAVA" $JAVA_OPTS $S2E_JAVA_OPTS -cp "$S2E_CLASSPATH" \
+          org.takemoa.sql2es.App start "$@" <&- &
+fi
+
+exit $?

@@ -1,0 +1,45 @@
+status: info # log level of log4j itself when configuring
+
+# list of appenders
+appenders:
+  # Console type appenders
+  Console: # appender type - a list of appender configurations
+    - name: console_out
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %c{1.} %msg%n"
+      ThresholdFilter: # filters out error messages
+        level: error
+        onMatch: deny # hide error level
+        onMismatch: accept # show others
+    - name: console_err
+      target: SYSTEM_ERR
+      ThresholdFilter:
+        level: error # show for error
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %c{1.} %msg%n"
+  RollingFile:
+    name: file
+    fileName: "${sys:sql2es.path.home}/log/sql2es.log"
+    filePattern: "${sys:sql2es.path.home}/log/$${date:yyyy-MM}/sql2es-%d{MM-dd-yyyy}-%i.log.gz"
+    PatternLayout:
+      Pattern: "%d %p %c{1.} [%t] %m%n"
+    Policies:
+      TimeBasedTriggeringPolicy:
+        interval: 1
+      SizeBasedTriggeringPolicy:
+        size: "25 MB"
+
+loggers:
+  root:
+    level: info
+    AppenderRef:
+      - ref: console_out
+      - ref: console_err
+      - ref: file
+  logger:
+    name: org.takemoa.sql2es
+    level: debug
+#    additivity: false
+#    AppenderRef:
+#      ref: RollingFile

@@ -53,7 +53,7 @@ channels:
     esType: employee
     # JDBC satasource for this channel
     datasource: employeesDS
-    # Optional, if not defined it is <domain>.yaml
+    # Optional, if not defined it is employee.yaml
     domainDefinitionFile: employee.yaml
     # Database timestamps time zone. If empty the local timezone is used
     dbTimeZoneId: PST

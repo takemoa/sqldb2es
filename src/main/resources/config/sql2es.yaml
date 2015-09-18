@@ -1,0 +1,63 @@
+---
+
+# General parameters
+
+# Interval between two consecutive runs; default=30
+runIntervalMins: 0
+# How many records to be processed in one batch. Default value is 50000.
+batchSize: 500000
+# ES cluster name and settings. It is not required to be defined here if default settings apply.
+esClusters:
+  Olympus171:
+    discovery.zen.ping.multicast.enabled: false
+    discovery.zen.ping.unicast.hosts.0: "localhost:9300"
+    discovery.zen.ping.unicast.hosts.1: "localhost:9301"
+
+# Datasources definition
+datasources:
+  employeesDS:
+    driverClassName: com.mysql.jdbc.Driver
+    url: "jdbc:mysql://127.0.0.1:3306/employees"
+    # Username if not included in the URL
+    username: root
+    password:
+
+# SQL Templates, per each driver type
+sqlTemplates:
+  # SQL Server	
+  com.microsoft.sqlserver.jdbc.SQLServerDriver:
+    templateSelectClause: "SELECT TOP (:limit) ${select_list}"
+    # templateFromClause: "  FROM ${from_list}"
+    # templateWhereClause: "  WHERE ${where_list}"
+    # templateOrderByClause: "  ORDER BY ${order_by_list}"
+    templateTableInFromClause: "${table_name} AS ${alias}"
+    templateColumnInSelectList: "${column_name} AS ${alias}"
+  # MySQL
+  com.mysql.jdbc.Driver:
+    templateSelectClause: "SELECT ${select_list}"
+    # templateFromClause: "  FROM ${from_list}"
+    # templateWhereClause: "  WHERE ${where_list}"
+    templateOrderByClause: "  ORDER BY ${order_by_list} LIMIT :limit"
+    templateTableInFromClause: "${table_name} AS ${alias}"
+    templateColumnInSelectList: "${column_name} AS ${alias}"
+
+# Channels definition
+channels:
+  # Channel name/ID
+  employees:
+    # ES cluster to be used for this channel.
+    esCluster: Olympus171
+    # The target ES Index
+    esIndex: example
+    # The target ES Type
+    esType: employee
+    # JDBC satasource for this channel
+    datasource: employeesDS
+    # Optional, if not defined it is <domain>.yaml
+    domainDefinitionFile: <domain>.yaml
+    # Database timestamps time zone. If empty the local timezone is used
+    dbTimeZoneId: PST
+    # Max records in one run - optional, defaults to 1,000,000
+    maxRecords: 2000000
+    # Batch size - default is the global value
+    # batchSize: 50000

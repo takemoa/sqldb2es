@@ -27,6 +27,7 @@
     </annotationProcessing>
     <bytecodeTargetLevel>
       <module name="sql2es" target="1.5" />
+      <module name="tutorial" target="1.5" />
     </bytecodeTargetLevel>
   </component>
 </project>
