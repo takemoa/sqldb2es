@@ -321,7 +321,7 @@ public class ChannelManager {
         Object maxValue = null;
         double maxAggValue = maxAgg.getValue();
         if (maxAggValue != Double.NEGATIVE_INFINITY && maxAggValue != Double.POSITIVE_INFINITY) {
-            maxValue = Conversions.fromEsValue(maxAgg.getValue(), fieldDef.getFieldType(), null);
+            maxValue = Conversions.fromEsValue(maxAgg.getValue(), fieldDef.getFieldType());
         }
 
         logger.debug("Channel {}: max '{}' value:{} (raw) -> {}, total records: {}", channelName, fieldDef.getFieldPath(),

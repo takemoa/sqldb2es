@@ -53,7 +53,7 @@ public class ChannelConfigData {
         // returned by ES as String
         Object lastExecutionDate = sourceMap.get("lastExecutionDate");
         sourceMap.put("lastExecutionDate", Conversions.fromEsValue(
-                lastExecutionDate, FieldType.DATETIME, null));
+                lastExecutionDate, FieldType.DATETIME));
 
         // TODO convert last reference
         ChannelConfigData configData = mapper.convertValue(sourceMap, ChannelConfigData.class);
@@ -61,7 +61,7 @@ public class ChannelConfigData {
         if (refFieldType != null) {
             Object refValue = configData.getLastRefValue();
             if (refValue != null) {
-                configData.updateLastRefValue(Conversions.fromEsValue(refValue, refFieldType, null));
+                configData.updateLastRefValue(Conversions.fromEsValue(refValue, refFieldType));
             }
         }
 

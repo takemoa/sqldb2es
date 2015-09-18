@@ -9,7 +9,6 @@ import org.takemoa.sql2es.definition.FieldType;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.format.DateTimeFormatter;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.TimeZone;
@@ -25,10 +24,9 @@ public class Conversions {
 	 * 
 	 * @param esValue
 	 * @param fieldType
-	 * @param esFormat
 	 * @return
 	 */
-	public static Object fromEsValue(Object esValue, FieldType fieldType, String esFormat) {
+	public static Object fromEsValue(Object esValue, FieldType fieldType) {
 		if (esValue == null) {
 			return null;
 		}
@@ -40,11 +38,7 @@ public class Conversions {
 				return esValue;
 			} else if (esClass == String.class) {
 				// convert from String using Joda
-				if (esFormat == null) {
-					return XContentBuilder.defaultDatePrinter.parseDateTime((String)esValue).toDate();
-				} else {
-					DateTimeFormatter.ofPattern(esFormat).parse((String)esValue);
-				}
+                return XContentBuilder.defaultDatePrinter.parseDateTime((String)esValue).toDate();
 			} else if (esClass == Long.class) {
 				// Create one automatically - Use UTC (as dates are coming from ES as UTC)
                 Timestamp dateTimeUtc = new Timestamp(((Long)esValue).longValue());
