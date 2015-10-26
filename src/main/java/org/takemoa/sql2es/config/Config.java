@@ -17,7 +17,7 @@ import java.util.Map;
 public class Config {
 
 	private int runIntervalMins = 30;
-	private int batchSize = 5000;
+	private int batchSize = 50000;
 	
 	// ES cluster custom settings
     @JsonProperty("esClusters")

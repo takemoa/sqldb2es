@@ -8,7 +8,7 @@ runIntervalMins: 0
 batchSize: 500000
 # ES cluster name and settings. It is not required to be defined here if default settings apply.
 esClusters:
-  Olympus171:
+  elasticsearch:
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts.0: "localhost:9300"
     discovery.zen.ping.unicast.hosts.1: "localhost:9301"

@@ -17,7 +17,7 @@ public class ChannelDefinition {
 
 	// The target ES cluster name
 	@JsonProperty("esCluster")
-	private String esClusterName = null;
+	private String esClusterName = "elasticsearch";
 	// The target ES index
 	private String esIndex = null;
 	// The target ES type

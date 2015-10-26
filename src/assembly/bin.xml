@@ -71,6 +71,16 @@
             </excludes>
         </fileSet>
         <fileSet>
+            <directory>docs</directory>
+            <outputDirectory>docs</outputDirectory>
+            <includes />
+        </fileSet>
+        <fileSet>
+            <includes>
+                <include>README.md</include>
+            </includes>
+        </fileSet>
+        <fileSet>
             <filtered>true</filtered>
             <directory>tutorial/bin</directory>
             <outputDirectory>tutorial/bin</outputDirectory>

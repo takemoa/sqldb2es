@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.takemoa.sql2es</groupId>
-    <artifactId>sql2es</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>sqldb2es</artifactId>
+    <version>0.9</version>
     <packaging>jar</packaging>
 
     <properties>

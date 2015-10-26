@@ -3,18 +3,19 @@
 # General parameters
 
 # Interval between two consecutive runs; default=30
-runIntervalMins: 0
-# How many records to be processed in one batch. Default value is 50000.
-batchSize: 500000
+runIntervalMins: 10
+# How many records to be processed in one batch. Default value is 50,000.
+batchSize: 50000
 # ES cluster name and settings. It is not required to be defined here if default settings apply.
 esClusters:
-  Olympus171:
+  elasticsearch:
     discovery.zen.ping.multicast.enabled: false
     discovery.zen.ping.unicast.hosts.0: "localhost:9300"
     discovery.zen.ping.unicast.hosts.1: "localhost:9301"
 
 # Datasources definition
 datasources:
+  # MySQL employee sample database
   employeesDS:
     driverClassName: com.mysql.jdbc.Driver
     url: "jdbc:mysql://127.0.0.1:3306/employees"
@@ -24,7 +25,7 @@ datasources:
 
 # SQL Templates, per each driver type
 sqlTemplates:
-  # SQL Server	
+  # SQL Server
   com.microsoft.sqlserver.jdbc.SQLServerDriver:
     templateSelectClause: "SELECT TOP (:limit) ${select_list}"
     # templateFromClause: "  FROM ${from_list}"
@@ -46,7 +47,7 @@ channels:
   # Channel name/ID
   employees:
     # ES cluster to be used for this channel.
-    esCluster: Olympus171
+    esCluster: elasticsearch
     # The target ES Index
     esIndex: example
     # The target ES Type
@@ -58,6 +59,6 @@ channels:
     # Database timestamps time zone. If empty the local timezone is used
     dbTimeZoneId: PST
     # Max records in one run - optional, defaults to 1,000,000
-    maxRecords: 2000000
+    maxRecords: 1000000
     # Batch size - default is the global value
     # batchSize: 50000
